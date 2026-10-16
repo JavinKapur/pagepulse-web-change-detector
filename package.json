@@ -1,0 +1,32 @@
+{
+  "name": "pagepulse-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PagePulse - Website Change Detector with visual diffs, noise filtering, and multi-channel alerts",
+  "author": "JavinKapur",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@12.11.2",
+  "scripts": {
+    "dev": "pnpm --filter @pagepulse/web dev",
+    "dev:all": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "pnpm -r run typecheck",
+    "db:generate": "pnpm --filter @pagepulse/db db:generate",
+    "db:migrate": "pnpm --filter @pagepulse/db db:migrate",
+    "worker": "pnpm --filter @pagepulse/worker worker",
+    "scheduler": "pnpm --filter @pagepulse/worker scheduler"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5",
+    "eslint": "^9.20.0"
+  }
+}

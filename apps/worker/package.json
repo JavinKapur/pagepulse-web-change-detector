@@ -1,0 +1,38 @@
+{
+  "name": "@pagepulse/worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist",
+    "worker": "node ./dist/index.js --worker",
+    "scheduler": "node ./dist/index.js --scheduler",
+    "start": "node ./dist/index.js --all"
+  },
+  "dependencies": {
+    "@pagepulse/browser": "workspace:*",
+    "@pagepulse/config": "workspace:*",
+    "@pagepulse/core": "workspace:*",
+    "@pagepulse/db": "workspace:*",
+    "@pagepulse/notifications": "workspace:*",
+    "bullmq": "^5.41.0",
+    "ioredis": "^5.5.0",
+    "pino": "^9.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.3"
+  }
+}

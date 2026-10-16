@@ -1,0 +1,55 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2022"
+    ],
+    "allowJs": true,
+    "jsx": "preserve",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@pagepulse/config": [
+        "../../packages/config/src/index.ts"
+      ],
+      "@pagepulse/core": [
+        "../../packages/core/src/index.ts"
+      ],
+      "@pagepulse/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@pagepulse/browser": [
+        "../../packages/browser/src/index.ts"
+      ],
+      "@pagepulse/notifications": [
+        "../../packages/notifications/src/index.ts"
+      ],
+      "@pagepulse/worker": [
+        "../../apps/worker/src/index.ts"
+      ]
+    },
+    "noEmit": true,
+    "incremental": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
