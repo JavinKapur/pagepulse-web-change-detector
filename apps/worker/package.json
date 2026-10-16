@@ -26,13 +26,13 @@
     "@pagepulse/core": "workspace:*",
     "@pagepulse/db": "workspace:*",
     "@pagepulse/notifications": "workspace:*",
-    "bullmq": "^5.41.0",
-    "ioredis": "^5.5.0",
-    "pino": "^9.6.0"
+    "bullmq": "^6.3.14",
+    "ioredis": "^6.0.0",
+    "pino": "^10.4.0"
   },
   "devDependencies": {
-    "@types/node": "^22.13.0",
+    "@types/node": "^26.6.5",
     "rimraf": "^6.0.1",
-    "typescript": "^5.7.3"
+    "typescript": "^7.0.2"
   }
 }
