@@ -64,9 +64,10 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: |
-          pnpm install --no-frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
+      - name: Build packages
+        run: pnpm build:packages
 
       - name: Run Typecheck
         run: pnpm typecheck
@@ -74,5 +75,6 @@ jobs:
       - name: Run Tests
         run: pnpm test
 
-      - name: Build packages and applications
+      - name: Build applications
         run: pnpm build
+
