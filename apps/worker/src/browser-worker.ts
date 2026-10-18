@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { IPagePulseRepository, WatchRecord } from '@pagepulse/db';
 import type { IPageCapturer } from '@pagepulse/browser';
 import type { IJobQueue } from './queue.js';
@@ -10,6 +12,17 @@ import {
   evaluateMeaningfulChange,
   createAlertIdempotencyKey,
 } from '@pagepulse/core';
+
+// Local directory where screenshots are stored (relative to CWD when worker runs)
+const SCREENSHOTS_DIR = path.resolve(process.cwd(), 'screenshots');
+
+/** Saves a screenshot PNG buffer to local disk and returns the file path. */
+function saveScreenshotLocally(objectKey: string, data: Buffer): void {
+  if (!data || data.length === 0) return;
+  const filePath = path.join(SCREENSHOTS_DIR, objectKey);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, data);
+}
 
 export interface BrowserWorkerOptions {
   appUrl?: string;
@@ -125,13 +138,16 @@ export class BrowserWorker {
 
     // Baseline creation (First run)
     if (!latestSnapshot) {
+      const baselineKey = `screenshots/${watch.id}/baseline.png`;
+      saveScreenshotLocally(baselineKey, captureResult.screenshotPng);
+
       await this.repo.createSnapshot({
         watchId: watch.id,
         checkRunId,
         sequenceNo: 1,
         contentHash,
         normalizedText: norm.normalizedText,
-        screenshotObjectKey: `screenshots/${watch.id}/baseline.png`,
+        screenshotObjectKey: baselineKey,
         previousSnapshotId: null,
         changeSummaryJson: {
           isBaseline: true,
@@ -179,13 +195,16 @@ export class BrowserWorker {
     }
 
     // Meaningful change confirmed!
+    const snapKey = `screenshots/${watch.id}/snap_${latestSnapshot.sequenceNo + 1}.png`;
+    saveScreenshotLocally(snapKey, captureResult.screenshotPng);
+
     const newSnapshot = await this.repo.createSnapshot({
       watchId: watch.id,
       checkRunId,
       sequenceNo: latestSnapshot.sequenceNo + 1,
       contentHash,
       normalizedText: norm.normalizedText,
-      screenshotObjectKey: `screenshots/${watch.id}/snap_${latestSnapshot.sequenceNo + 1}.png`,
+      screenshotObjectKey: snapKey,
       previousSnapshotId: latestSnapshot.id,
       changeSummaryJson: {
         summary: diff.summary,

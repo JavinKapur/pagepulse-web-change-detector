@@ -237,6 +237,7 @@ export default function DashboardPage() {
             placeholder="Search watches or domains..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            suppressHydrationWarning
             className="w-full rounded-md border border-slate-300 py-1.5 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
@@ -247,6 +248,7 @@ export default function DashboardPage() {
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
+              suppressHydrationWarning
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 statusFilter === status
                   ? 'bg-indigo-600 text-white'
