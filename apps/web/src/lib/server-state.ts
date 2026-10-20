@@ -1,4 +1,9 @@
-import { MemoryRepository, encryptSecret } from '@pagepulse/db';
+import {
+  IPagePulseRepository,
+  DrizzleRepository,
+  MemoryRepository,
+  encryptSecret,
+} from '@pagepulse/db';
 import { MockCapturer } from '@pagepulse/browser';
 import { NotificationDispatcher } from '@pagepulse/notifications';
 import { BrowserWorker } from '@pagepulse/worker';
@@ -8,14 +13,23 @@ import { deriveTargetKey } from '@pagepulse/core';
 // Global singleton instance for Next.js development and runtime persistence
 declare global {
   // eslint-disable-next-line no-var
-  var __pagepulse_repo: MemoryRepository | undefined;
+  var __pagepulse_repo: IPagePulseRepository | undefined;
   // eslint-disable-next-line no-var
   var __pagepulse_capturer: MockCapturer | undefined;
   // eslint-disable-next-line no-var
   var __pagepulse_worker: BrowserWorker | undefined;
 }
 
-export const repo = globalThis.__pagepulse_repo || new MemoryRepository();
+function initializeRepository(): IPagePulseRepository {
+  try {
+    return new DrizzleRepository();
+  } catch (err) {
+    console.warn('[PagePulse] Failed to connect to PostgreSQL via Drizzle. Falling back to MemoryRepository:', err);
+    return new MemoryRepository();
+  }
+}
+
+export const repo: IPagePulseRepository = globalThis.__pagepulse_repo || initializeRepository();
 if (!globalThis.__pagepulse_repo) globalThis.__pagepulse_repo = repo;
 
 export const capturer = globalThis.__pagepulse_capturer || new MockCapturer();
@@ -40,97 +54,106 @@ export const dispatcher = new NotificationDispatcher({
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
 });
 
-// Seed default demo user and initial watch if empty
+// Seed default demo user and initial watch if empty in database
 async function seedDefaultData() {
-  const users = Array.from(repo.users.values());
-  if (users.length === 0) {
-    const user = await repo.createUser({
-      email: 'demo@pagepulse.dev',
-      displayName: 'Javin Kapur',
-    });
+  try {
+    let user = await repo.getUserByEmail('demo@pagepulse.dev');
+    if (!user) {
+      user = await repo.createUser({
+        email: 'demo@pagepulse.dev',
+        displayName: 'Javin Kapur',
+      });
+    }
 
-    const targetUrl = 'https://news.ycombinator.com';
-    const target = await repo.findOrCreateTarget(
-      targetUrl,
-      deriveTargetKey(targetUrl),
-      'news.ycombinator.com'
-    );
+    const watches = await repo.listWatchesByUserId(user.id);
+    if (watches.length === 0) {
+      const targetUrl = 'https://news.ycombinator.com';
+      const target = await repo.findOrCreateTarget(
+        targetUrl,
+        deriveTargetKey(targetUrl),
+        'news.ycombinator.com'
+      );
 
-    const watch = await repo.createWatch({
-      userId: user.id,
-      targetId: target.id,
-      name: 'Hacker News Frontpage',
-      intervalMinutes: 15,
-      enabled: true,
-      sensitivity: 'normal',
-      includeSelectors: ['.titleline'],
-      ignoreSelectors: ['.subline'],
-      normalizationRules: { stripTimestamps: true, stripCounters: true },
-      status: 'OK',
-      nextCheckAt: new Date(Date.now() + 15 * 60 * 1000),
-      baselineEstablishedAt: new Date(Date.now() - 3600000),
-      lastCheckedAt: new Date(Date.now() - 60000),
-      lastChangedAt: new Date(Date.now() - 300000),
-    });
+      const watch = await repo.createWatch({
+        userId: user.id,
+        targetId: target.id,
+        name: 'Hacker News Frontpage',
+        intervalMinutes: 15,
+        enabled: true,
+        sensitivity: 'normal',
+        includeSelectors: ['.titleline'],
+        ignoreSelectors: ['.subline'],
+        normalizationRules: { stripTimestamps: true, stripCounters: true },
+        status: 'OK',
+        nextCheckAt: new Date(Date.now() + 15 * 60 * 1000),
+        baselineEstablishedAt: new Date(Date.now() - 3600000),
+        lastCheckedAt: new Date(Date.now() - 60000),
+        lastChangedAt: new Date(Date.now() - 300000),
+      });
 
-    const run = await repo.createCheckRun({
-      targetId: target.id,
-      outcome: 'OK',
-      httpStatus: 200,
-      finalUrl: targetUrl,
-      durationMs: 420,
-      errorCode: null,
-      textHash: 'hash-demo-1',
-      changedPixelRatio: '0.015',
-      metadataJson: { pageTitle: 'Hacker News' },
-      startedAt: new Date(Date.now() - 3600000),
-      finishedAt: new Date(Date.now() - 3600000 + 420),
-    });
+      const run = await repo.createCheckRun({
+        targetId: target.id,
+        outcome: 'OK',
+        httpStatus: 200,
+        finalUrl: targetUrl,
+        durationMs: 420,
+        errorCode: null,
+        textHash: 'hash-demo-1',
+        changedPixelRatio: '0.015',
+        metadataJson: { pageTitle: 'Hacker News' },
+        startedAt: new Date(Date.now() - 3600000),
+        finishedAt: new Date(Date.now() - 3600000 + 420),
+      });
 
-    await repo.createSnapshot({
-      watchId: watch.id,
-      checkRunId: run.id,
-      sequenceNo: 1,
-      contentHash: 'hash-demo-1',
-      normalizedText: '1. Show HN: PagePulse - Modern Web Change Detector\n2. Announcing TypeScript 5.8\n3. PostgreSQL 18 Released',
-      screenshotObjectKey: 'screenshots/demo/1.png',
-      previousSnapshotId: null,
-      changeSummaryJson: { isBaseline: true },
-    });
+      const snap1 = await repo.createSnapshot({
+        watchId: watch.id,
+        checkRunId: run.id,
+        sequenceNo: 1,
+        contentHash: 'hash-demo-1',
+        normalizedText:
+          '1. Show HN: PagePulse - Modern Web Change Detector\n2. Announcing TypeScript 5.8\n3. PostgreSQL 18 Released',
+        screenshotObjectKey: 'screenshots/demo/1.png',
+        previousSnapshotId: null,
+        changeSummaryJson: { isBaseline: true },
+      });
 
-    await repo.createSnapshot({
-      watchId: watch.id,
-      checkRunId: run.id,
-      sequenceNo: 2,
-      contentHash: 'hash-demo-2',
-      normalizedText: '1. Show HN: PagePulse - Modern Web Change Detector (Trending #1)\n2. Announcing TypeScript 5.8\n3. PostgreSQL 18 Released\n4. Deep Learning in 2026',
-      screenshotObjectKey: 'screenshots/demo/2.png',
-      previousSnapshotId: 'snap-1',
-      changeSummaryJson: {
-        summary: '+1 line, 0 deleted (+8 words)',
-        addedLines: 1,
-        deletedLines: 0,
-      },
-    });
+      await repo.createSnapshot({
+        watchId: watch.id,
+        checkRunId: run.id,
+        sequenceNo: 2,
+        contentHash: 'hash-demo-2',
+        normalizedText:
+          '1. Show HN: PagePulse - Modern Web Change Detector (Trending #1)\n2. Announcing TypeScript 5.8\n3. PostgreSQL 18 Released\n4. Deep Learning in 2026',
+        screenshotObjectKey: 'screenshots/demo/2.png',
+        previousSnapshotId: snap1.id,
+        changeSummaryJson: {
+          summary: '+1 line, 0 deleted (+8 words)',
+          addedLines: 1,
+          deletedLines: 0,
+        },
+      });
 
-    // Add demo notification endpoint
-    await repo.createNotificationEndpoint({
-      userId: user.id,
-      channel: 'email',
-      encryptedConfig: encryptSecret({ email: 'demo@pagepulse.dev' }, encryptionKey),
-      enabled: true,
-    });
+      // Add demo notification endpoint
+      await repo.createNotificationEndpoint({
+        userId: user.id,
+        channel: 'email',
+        encryptedConfig: encryptSecret({ email: 'demo@pagepulse.dev' }, encryptionKey),
+        enabled: true,
+      });
+    }
+  } catch (err) {
+    console.error('[PagePulse] Error during DB seeding:', err);
   }
 }
 
 seedDefaultData().catch(console.error);
 
 export async function getCurrentUserId(): Promise<string> {
-  const users = Array.from(repo.users.values());
-  if (users.length > 0) return users[0].id;
-  const user = await repo.createUser({
+  const user = await repo.getUserByEmail('demo@pagepulse.dev');
+  if (user) return user.id;
+  const created = await repo.createUser({
     email: 'demo@pagepulse.dev',
     displayName: 'Javin Kapur',
   });
-  return user.id;
+  return created.id;
 }
